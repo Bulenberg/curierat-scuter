@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { supabase } from '@/lib/supabase'
+import { supabase } from '../lib/supabase'
 import { 
   Shield, Truck, Building2, Lock, LogOut, Plus, CheckCircle2, 
   AlertCircle, Clock, MapPin, Phone, FileText, DollarSign, Activity, Users, Settings 
