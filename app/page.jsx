@@ -15,13 +15,12 @@ export default function DentaMotoApp() {
   const [panelData, setPanelData] = useState(null)
   const [activeTab, setActiveTab] = useState('dashboard')
 
-  // Stări pentru formulare admin / client
+  // Stări formular client
   const [selectedDest, setSelectedDest] = useState('')
   const [isUrgent, setIsUrgent] = useState(false)
   const [needsReturn, setNeedsReturn] = useState(false)
   const [packageNotes, setPackageNotes] = useState('')
 
-  // Verificăm dacă există sesiune salvată
   useEffect(() => {
     const saved = localStorage.getItem('denta_moto_session')
     if (saved) {
@@ -216,7 +215,6 @@ export default function DentaMotoApp() {
         </header>
 
         <main className="max-w-5xl mx-auto px-4 mt-6 space-y-6">
-          {/* Card Contor Cotă Lunară */}
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
             <div className="flex justify-between items-center mb-2">
               <span className="text-sm font-bold text-slate-700">Consum Cotă Lunară ({current_month})</span>
@@ -229,7 +227,6 @@ export default function DentaMotoApp() {
           </div>
 
           <div className="grid md:grid-cols-3 gap-6">
-            {/* Formular Comandă Nouă */}
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 md:col-span-1">
               <h2 className="text-base font-bold text-slate-900 mb-4 flex items-center gap-2">
                 <Plus size={18} className="text-blue-600" /> Trimite Pachet Nou
@@ -282,7 +279,6 @@ export default function DentaMotoApp() {
               </form>
             </div>
 
-            {/* Listă Comenzi Active */}
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 md:col-span-2">
               <h2 className="text-base font-bold text-slate-900 mb-4 flex items-center gap-2">
                 <Clock size={18} className="text-blue-600" /> Istoric & Status Comenzi ({current_month})
@@ -322,8 +318,8 @@ export default function DentaMotoApp() {
     )
   }
 
-  // --- PANOU CURIER ---
-  if ((session.panel === 'courier' || session.panel === 'admin') && panelData) {
+  // --- PANOU CURIER SIMPLU ---
+  if (session.panel === 'courier' && panelData) {
     const deliveries = panelData.deliveries || []
 
     return (
@@ -409,6 +405,148 @@ export default function DentaMotoApp() {
                 </div>
               </div>
             ))
+          )}
+        </main>
+      </div>
+    )
+  }
+
+  // --- PANOU ADMIN & CONTABILITATE SOLO.RO ---
+  if (session.panel === 'admin' && panelData) {
+    const { admin, clients, couriers, deliveries } = panelData
+
+    return (
+      <div className="min-h-screen bg-slate-900 text-white pb-12">
+        <header className="bg-slate-800 border-b border-slate-700 sticky top-0 z-10">
+          <div className="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
+            <div className="flex items-center gap-3">
+              <div className="bg-blue-600 text-white p-2 rounded-xl font-bold">
+                <Shield size={20} />
+              </div>
+              <div>
+                <h1 className="text-base font-bold">Panou Admin & Solo.ro ({admin.name})</h1>
+                <p className="text-xs text-slate-400">Control Central DentaMoto Express</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="flex bg-slate-900 p-1 rounded-xl border border-slate-700">
+                <button
+                  onClick={() => setActiveTab('dashboard')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${activeTab === 'dashboard' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'}`}
+                >
+                  Comenzi & Live
+                </button>
+                <button
+                  onClick={() => setActiveTab('solo')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${activeTab === 'solo' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'}`}
+                >
+                  Contabilitate Solo.ro
+                </button>
+              </div>
+              <button onClick={handleLogout} className="flex items-center gap-1.5 px-3 py-2 text-sm text-red-400 hover:bg-slate-700 rounded-lg transition font-medium">
+                <LogOut size={16} /> Ieșire
+              </button>
+            </div>
+          </div>
+        </header>
+
+        <main className="max-w-6xl mx-auto px-4 mt-6 space-y-6">
+          {activeTab === 'dashboard' ? (
+            <div className="space-y-6">
+              {/* Statistici rapide */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="bg-slate-800 p-5 rounded-2xl border border-slate-700">
+                  <span className="text-xs text-slate-400 font-semibold uppercase">Total Comenzi</span>
+                  <p className="text-2xl font-extrabold text-white mt-1">{deliveries.length}</p>
+                </div>
+                <div className="bg-slate-800 p-5 rounded-2xl border border-slate-700">
+                  <span className="text-xs text-slate-400 font-semibold uppercase">Laboratoare Active</span>
+                  <p className="text-2xl font-extrabold text-blue-400 mt-1">{clients.length}</p>
+                </div>
+                <div className="bg-slate-800 p-5 rounded-2xl border border-slate-700">
+                  <span className="text-xs text-slate-400 font-semibold uppercase">Curieri pe Scutere</span>
+                  <p className="text-2xl font-extrabold text-amber-400 mt-1">{couriers.length}</p>
+                </div>
+              </div>
+
+              {/* Listă comenzi active */}
+              <div className="bg-slate-800 rounded-2xl p-6 border border-slate-700">
+                <h2 className="text-sm font-bold uppercase tracking-wider text-slate-400 mb-4">Toate Cursele Din Sistem</h2>
+                <div className="space-y-3">
+                  {deliveries.length === 0 ? (
+                    <p className="text-sm text-slate-400 text-center py-6">Nicio cursă înregistrată.</p>
+                  ) : (
+                    deliveries.map(d => (
+                      <div key={d.id} className="p-4 rounded-xl bg-slate-900 border border-slate-700 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-white text-sm">{d.clinic_name}</span>
+                            <span className="text-xs text-slate-400 bg-slate-800 px-2 py-0.5 rounded-full">{d.zone}</span>
+                            {d.is_urgent && <span className="text-xs bg-red-900 text-red-300 px-2 py-0.5 rounded-full font-bold">URGENT</span>}
+                          </div>
+                          <p className="text-xs text-slate-400 mt-1">Laborator: {d.client_name} • Observații: {d.package_notes}</p>
+                        </div>
+                        <span className={`text-xs px-3 py-1 rounded-full font-semibold ${
+                          d.status === 'delivered' ? 'bg-green-900 text-green-300' :
+                          d.status === 'picked_up' ? 'bg-blue-900 text-blue-300' : 'bg-amber-900 text-amber-300'
+                        }`}>
+                          {d.status}
+                        </span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+          ) : (
+            /* Secțiunea Solo.ro / Facturare */
+            <div className="space-y-6">
+              <div className="bg-slate-800 rounded-2xl p-6 border border-slate-700">
+                <div className="flex justify-between items-center mb-6">
+                  <div>
+                    <h2 className="text-base font-bold text-white">Raport Facturare & Cotele Lunare (Solo.ro)</h2>
+                    <p className="text-xs text-slate-400">Situația centralizată a abonamentelor și curselor suplimentare pe laboratoare.</p>
+                  </div>
+                  <span className="bg-blue-900 text-blue-200 text-xs px-3 py-1 rounded-full font-semibold">Mod Contabilitate B2B</span>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-sm">
+                    <thead className="bg-slate-900 text-slate-400 uppercase text-xs">
+                      <tr>
+                        <th className="p-3 rounded-l-xl">Laborator</th>
+                        <th className="p-3">CUI</th>
+                        <th className="p-3">Cotă lunară</th>
+                        <th className="p-3">Curse efectuate</th>
+                        <th className="p-3">Tarif extra</th>
+                        <th className="p-3 rounded-r-xl">Status facturare</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-700">
+                      {clients.map(c => {
+                        const clientDeliveries = deliveries.filter(d => d.client_id === c.id && d.status !== 'cancelled' && !d.is_urgent)
+                        const count = clientDeliveries.length
+                        const extraCount = Math.max(0, count - c.monthly_quota)
+                        const extraTotal = extraCount * c.extra_fee
+
+                        return (
+                          <tr key={c.id} className="hover:bg-slate-900/50">
+                            <td className="p-3 font-bold text-white">{c.name}</td>
+                            <td className="p-3 text-slate-400">{c.cui}</td>
+                            <td className="p-3">{c.monthly_quota} curse</td>
+                            <td className="p-3 font-semibold text-blue-400">{count} curse</td>
+                            <td className="p-3 text-amber-400">+{extraTotal} RON ({extraCount} extra)</td>
+                            <td className="p-3">
+                              <span className="bg-green-900 text-green-300 text-xs px-2.5 py-1 rounded-full font-medium">Pregătit Solo.ro</span>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
           )}
         </main>
       </div>
