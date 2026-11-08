@@ -15,7 +15,6 @@ export default function DentaMotoApp() {
   const [panelData, setPanelData] = useState(null)
   const [activeTab, setActiveTab] = useState('dashboard')
 
-  // Stări formular client
   const [selectedDest, setSelectedDest] = useState('')
   const [isUrgent, setIsUrgent] = useState(false)
   const [needsReturn, setNeedsReturn] = useState(false)
@@ -51,7 +50,7 @@ export default function DentaMotoApp() {
         const newSession = {
           password: passwordInput.trim(),
           panel: data.panel,
-          user: data.user
+          user: data.user || {}
         }
         setSession(newSession)
         localStorage.setItem('denta_moto_session', JSON.stringify(newSession))
@@ -142,7 +141,6 @@ export default function DentaMotoApp() {
     }
   }
 
-  // --- ECRAN DE AUTENTIFICARE ---
   if (!session) {
     return (
       <main className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
@@ -198,15 +196,15 @@ export default function DentaMotoApp() {
   if (session.panel === 'client' && panelData) {
     const { client, destinations, deliveries, current_month } = panelData
     const standardUsed = deliveries.filter(d => d.status !== 'cancelled' && !d.is_urgent).length
-    const quotaPercent = Math.min(100, (standardUsed / client.monthly_quota) * 100)
+    const quotaPercent = Math.min(100, (standardUsed / (client?.monthly_quota || 1)) * 100)
 
     return (
       <div className="min-h-screen bg-slate-100 pb-12">
         <header className="bg-white border-b border-slate-200 sticky top-0 z-10">
           <div className="max-w-5xl mx-auto px-4 py-4 flex justify-between items-center">
             <div>
-              <h1 className="text-lg font-bold text-slate-900">{client.name}</h1>
-              <p className="text-xs text-slate-500">CUI: {client.cui} • {client.pickup_address}</p>
+              <h1 className="text-lg font-bold text-slate-900">{client?.name}</h1>
+              <p className="text-xs text-slate-500">CUI: {client?.cui} • {client?.pickup_address}</p>
             </div>
             <button onClick={handleLogout} className="flex items-center gap-1.5 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition font-medium">
               <LogOut size={16} /> Ieșire
@@ -218,12 +216,12 @@ export default function DentaMotoApp() {
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
             <div className="flex justify-between items-center mb-2">
               <span className="text-sm font-bold text-slate-700">Consum Cotă Lunară ({current_month})</span>
-              <span className="text-sm font-bold text-blue-600">{standardUsed} / {client.monthly_quota} curse incluse</span>
+              <span className="text-sm font-bold text-blue-600">{standardUsed} / {client?.monthly_quota} curse incluse</span>
             </div>
             <div className="w-full bg-slate-100 h-3 rounded-full overflow-hidden">
               <div className="bg-blue-600 h-full transition-all duration-500" style={{ width: `${quotaPercent}%` }}></div>
             </div>
-            <p className="text-xs text-slate-400 mt-2">Cursele peste cotă se facturează conform contractului cu {client.extra_fee} RON / oprire.</p>
+            <p className="text-xs text-slate-400 mt-2">Cursele peste cotă se facturează conform contractului cu {client?.extra_fee} RON / oprire.</p>
           </div>
 
           <div className="grid md:grid-cols-3 gap-6">
@@ -241,7 +239,7 @@ export default function DentaMotoApp() {
                     required
                   >
                     <option value="">-- Alege clinica destinație --</option>
-                    {destinations.map(d => (
+                    {destinations?.map(d => (
                       <option key={d.id} value={d.id}>{d.clinic_name} ({d.zone})</option>
                     ))}
                   </select>
@@ -261,7 +259,7 @@ export default function DentaMotoApp() {
                 <div className="space-y-2 pt-2 border-t">
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input type="checkbox" checked={isUrgent} onChange={(e) => setIsUrgent(e.target.checked)} className="rounded text-blue-600 w-4 h-4" />
-                    <span className="text-sm font-medium text-red-600">Regim Urgență (60 min - +{client.urgent_fee} RON)</span>
+                    <span className="text-sm font-medium text-red-600">Regim Urgență (60 min - +{client?.urgent_fee} RON)</span>
                   </label>
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input type="checkbox" checked={needsReturn} onChange={(e) => setNeedsReturn(e.target.checked)} className="rounded text-blue-600 w-4 h-4" />
@@ -285,7 +283,7 @@ export default function DentaMotoApp() {
               </h2>
 
               <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2">
-                {deliveries.length === 0 ? (
+                {!deliveries || deliveries.length === 0 ? (
                   <p className="text-sm text-slate-400 text-center py-8">Nicio comandă înregistrată în această lună.</p>
                 ) : (
                   deliveries.map(d => (
@@ -318,7 +316,7 @@ export default function DentaMotoApp() {
     )
   }
 
-  // --- PANOU CURIER SIMPLU ---
+  // --- PANOU CURIER ---
   if (session.panel === 'courier' && panelData) {
     const deliveries = panelData.deliveries || []
 
@@ -331,8 +329,8 @@ export default function DentaMotoApp() {
                 <Truck size={20} />
               </div>
               <div>
-                <h1 className="text-base font-bold">Cockpit Moto ({session.user.name})</h1>
-                <p className="text-xs text-slate-400">Scuter: {session.user.vehicle_plate}</p>
+                <h1 className="text-base font-bold">Cockpit Moto ({session.user?.name || 'Curier'})</h1>
+                <p className="text-xs text-slate-400">Scuter: {session.user?.vehicle_plate || 'B-MOTO'}</p>
               </div>
             </div>
             <button onClick={handleLogout} className="flex items-center gap-1.5 px-3 py-2 text-sm text-red-400 hover:bg-slate-700 rounded-lg transition font-medium">
@@ -413,7 +411,7 @@ export default function DentaMotoApp() {
 
   // --- PANOU ADMIN & CONTABILITATE SOLO.RO ---
   if (session.panel === 'admin' && panelData) {
-    const { admin, clients, couriers, deliveries } = panelData
+    const { admin, clients = [], couriers = [], deliveries = [] } = panelData
 
     return (
       <div className="min-h-screen bg-slate-900 text-white pb-12">
@@ -424,7 +422,7 @@ export default function DentaMotoApp() {
                 <Shield size={20} />
               </div>
               <div>
-                <h1 className="text-base font-bold">Panou Admin & Solo.ro ({admin.name})</h1>
+                <h1 className="text-base font-bold">Panou Admin & Solo.ro ({admin?.name || 'Admin'})</h1>
                 <p className="text-xs text-slate-400">Control Central DentaMoto Express</p>
               </div>
             </div>
@@ -453,7 +451,6 @@ export default function DentaMotoApp() {
         <main className="max-w-6xl mx-auto px-4 mt-6 space-y-6">
           {activeTab === 'dashboard' ? (
             <div className="space-y-6">
-              {/* Statistici rapide */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="bg-slate-800 p-5 rounded-2xl border border-slate-700">
                   <span className="text-xs text-slate-400 font-semibold uppercase">Total Comenzi</span>
@@ -469,7 +466,6 @@ export default function DentaMotoApp() {
                 </div>
               </div>
 
-              {/* Listă comenzi active */}
               <div className="bg-slate-800 rounded-2xl p-6 border border-slate-700">
                 <h2 className="text-sm font-bold uppercase tracking-wider text-slate-400 mb-4">Toate Cursele Din Sistem</h2>
                 <div className="space-y-3">
@@ -499,7 +495,6 @@ export default function DentaMotoApp() {
               </div>
             </div>
           ) : (
-            /* Secțiunea Solo.ro / Facturare */
             <div className="space-y-6">
               <div className="bg-slate-800 rounded-2xl p-6 border border-slate-700">
                 <div className="flex justify-between items-center mb-6">
@@ -553,5 +548,14 @@ export default function DentaMotoApp() {
     )
   }
 
-  return null
+  return (
+    <div className="min-h-screen bg-slate-900 text-white flex items-center justify-center p-4">
+      <div className="text-center space-y-4">
+        <p className="text-slate-400">Se încarcă panoul de control...</p>
+        <button onClick={handleLogout} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-xl text-sm font-medium transition">
+          Ieșire / Resetare Sesiune
+        </button>
+      </div>
+    </div>
+  )
 }
