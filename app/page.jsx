@@ -4,8 +4,8 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { 
   Shield, Truck, Building2, Lock, LogOut, Plus, CheckCircle2, 
-  AlertCircle, Clock, MapPin, Phone, Navigation, Route, Trash2, 
-  Users, Sparkles, RefreshCw, Compass
+  AlertCircle, Clock, MapPin, Navigation, Route, Trash2, 
+  Users, Sparkles, RefreshCw, Compass, Edit2, X
 } from 'lucide-react'
 
 export default function DentaMotoApp() {
@@ -26,14 +26,19 @@ export default function DentaMotoApp() {
   const [needsReturn, setNeedsReturn] = useState(false)
   const [packageNotes, setPackageNotes] = useState('')
 
-  // Stări Formulare Admin (Adăugare Client, Clinică, Curier)
+  // Stări Formulare Admin + ID-uri pentru Editare
+  const [editingClientId, setEditingClientId] = useState(null)
   const [newClient, setNewClient] = useState({
     name: '', legal_name: '', cui: '', pickup_address: '', phone: '',
     monthly_quota: 25, subscription_price: 500, extra_fee: 35, urgent_fee: 50, password: ''
   })
+
+  const [editingDestId, setEditingDestId] = useState(null)
   const [newDest, setNewDest] = useState({
     client_id: '', clinic_name: '', dropoff_address: '', zone: 'Sector 1', contact_phone: ''
   })
+
+  const [editingCourierId, setEditingCourierId] = useState(null)
   const [newCourier, setNewCourier] = useState({
     name: '', phone: '', vehicle_plate: '', password: ''
   })
@@ -162,7 +167,6 @@ export default function DentaMotoApp() {
     const active = deliveriesList.filter(d => d.status !== 'delivered' && d.status !== 'cancelled')
     const completed = deliveriesList.filter(d => d.status === 'delivered' || d.status === 'cancelled')
 
-    // Algoritm grupare: 1. Urgențe, 2. Ridicări grupate pe laborator, 3. Livrări grupate pe Zonă/Sector
     const sortedActive = [...active].sort((a, b) => {
       if (a.is_urgent !== b.is_urgent) return a.is_urgent ? -1 : 1
       if (a.status !== b.status) return a.status === 'pending' ? -1 : 1
@@ -179,7 +183,6 @@ export default function DentaMotoApp() {
     const active = deliveriesList.filter(d => d.status === 'pending' || d.status === 'picked_up')
     if (active.length === 0) return alert('Nu ai opriri active pentru traseu!')
 
-    // Colectăm adresele unice în ordinea optimizată (Ridicare pt pending, Livrare pt picked_up)
     const stops = []
     active.forEach(d => {
       const address = d.status === 'pending' ? d.pickup_address : d.dropoff_address
@@ -193,7 +196,7 @@ export default function DentaMotoApp() {
     window.open(url, '_blank')
   }
 
-  // --- FUNCȚII ADMIN CRUD ---
+  // --- FUNCȚII ADMIN CRUD (ADAUGARE + EDITARE + ȘTERGERE) ---
   const handleAssignCourier = async (deliveryId, courierId) => {
     try {
       const { error } = await supabase.rpc('rpc_admin_assign_courier', {
@@ -208,78 +211,176 @@ export default function DentaMotoApp() {
     }
   }
 
-  const handleAddClient = async (e) => {
+  const handleSaveClient = async (e) => {
     e.preventDefault()
     setLoading(true)
     try {
-      const { error } = await supabase.rpc('rpc_admin_add_client', {
-        input_password: session.password,
-        p_name: newClient.name,
-        p_legal_name: newClient.legal_name || newClient.name,
-        p_cui: newClient.cui,
-        p_pickup_address: newClient.pickup_address,
-        p_phone: newClient.phone,
-        p_monthly_quota: Number(newClient.monthly_quota),
-        p_subscription_price: Number(newClient.subscription_price),
-        p_extra_fee: Number(newClient.extra_fee),
-        p_urgent_fee: Number(newClient.urgent_fee),
-        p_raw_password: newClient.password
-      })
-      if (error) throw error
-      alert('Laborator adăugat cu succes!')
-      setNewClient({ name: '', legal_name: '', cui: '', pickup_address: '', phone: '', monthly_quota: 25, subscription_price: 500, extra_fee: 35, urgent_fee: 50, password: '' })
+      if (editingClientId) {
+        const { error } = await supabase.rpc('rpc_admin_update_client', {
+          input_password: session.password,
+          p_id: editingClientId,
+          p_name: newClient.name,
+          p_legal_name: newClient.legal_name || newClient.name,
+          p_cui: newClient.cui,
+          p_pickup_address: newClient.pickup_address,
+          p_phone: newClient.phone,
+          p_monthly_quota: Number(newClient.monthly_quota),
+          p_subscription_price: Number(newClient.subscription_price),
+          p_extra_fee: Number(newClient.extra_fee),
+          p_urgent_fee: Number(newClient.urgent_fee),
+          p_raw_password: newClient.password || null
+        })
+        if (error) throw error
+        alert('Laborator actualizat cu succes!')
+      } else {
+        const { error } = await supabase.rpc('rpc_admin_add_client', {
+          input_password: session.password,
+          p_name: newClient.name,
+          p_legal_name: newClient.legal_name || newClient.name,
+          p_cui: newClient.cui,
+          p_pickup_address: newClient.pickup_address,
+          p_phone: newClient.phone,
+          p_monthly_quota: Number(newClient.monthly_quota),
+          p_subscription_price: Number(newClient.subscription_price),
+          p_extra_fee: Number(newClient.extra_fee),
+          p_urgent_fee: Number(newClient.urgent_fee),
+          p_raw_password: newClient.password
+        })
+        if (error) throw error
+        alert('Laborator adăugat cu succes!')
+      }
+      resetClientForm()
       loadPanelData(session.password, 'admin')
     } catch (err) {
-      alert('Eroare la adăugare laborator: ' + err.message)
+      alert('Eroare la salvare laborator: ' + err.message)
     } finally {
       setLoading(false)
     }
   }
 
-  const handleAddDestination = async (e) => {
+  const startEditClient = (c) => {
+    setEditingClientId(c.id)
+    setNewClient({
+      name: c.name || '',
+      legal_name: c.legal_name || c.name || '',
+      cui: c.cui || '',
+      pickup_address: c.pickup_address || '',
+      phone: c.phone || '',
+      monthly_quota: c.monthly_quota ?? 25,
+      subscription_price: c.subscription_price ?? 500,
+      extra_fee: c.extra_fee ?? 35,
+      urgent_fee: c.urgent_fee ?? 50,
+      password: ''
+    })
+  }
+
+  const resetClientForm = () => {
+    setEditingClientId(null)
+    setNewClient({ name: '', legal_name: '', cui: '', pickup_address: '', phone: '', monthly_quota: 25, subscription_price: 500, extra_fee: 35, urgent_fee: 50, password: '' })
+  }
+
+  const handleSaveDestination = async (e) => {
     e.preventDefault()
     if (!newDest.client_id) return alert('Selectează laboratorul de care aparține clinica!')
     setLoading(true)
     try {
-      const { error } = await supabase.rpc('rpc_admin_add_destination', {
-        input_password: session.password,
-        p_client_id: newDest.client_id,
-        p_clinic_name: newDest.clinic_name,
-        p_dropoff_address: newDest.dropoff_address,
-        p_zone: newDest.zone,
-        p_contact_phone: newDest.contact_phone
-      })
-      if (error) throw error
-      alert('Clinică destinație adăugată!')
-      setNewDest({ client_id: '', clinic_name: '', dropoff_address: '', zone: 'Sector 1', contact_phone: '' })
+      if (editingDestId) {
+        const { error } = await supabase.rpc('rpc_admin_update_destination', {
+          input_password: session.password,
+          p_id: editingDestId,
+          p_client_id: newDest.client_id,
+          p_clinic_name: newDest.clinic_name,
+          p_dropoff_address: newDest.dropoff_address,
+          p_zone: newDest.zone,
+          p_contact_phone: newDest.contact_phone
+        })
+        if (error) throw error
+        alert('Clinică destinație actualizată!')
+      } else {
+        const { error } = await supabase.rpc('rpc_admin_add_destination', {
+          input_password: session.password,
+          p_client_id: newDest.client_id,
+          p_clinic_name: newDest.clinic_name,
+          p_dropoff_address: newDest.dropoff_address,
+          p_zone: newDest.zone,
+          p_contact_phone: newDest.contact_phone
+        })
+        if (error) throw error
+        alert('Clinică destinație adăugată!')
+      }
+      resetDestForm()
       loadPanelData(session.password, 'admin')
     } catch (err) {
-      alert('Eroare la adăugare destinație: ' + err.message)
+      alert('Eroare la salvare destinație: ' + err.message)
     } finally {
       setLoading(false)
     }
   }
 
-  const handleAddCourier = async (e) => {
+  const startEditDest = (dest) => {
+    setEditingDestId(dest.id)
+    setNewDest({
+      client_id: dest.client_id || '',
+      clinic_name: dest.clinic_name || '',
+      dropoff_address: dest.dropoff_address || '',
+      zone: dest.zone || 'Sector 1',
+      contact_phone: dest.contact_phone || ''
+    })
+  }
+
+  const resetDestForm = () => {
+    setEditingDestId(null)
+    setNewDest({ client_id: '', clinic_name: '', dropoff_address: '', zone: 'Sector 1', contact_phone: '' })
+  }
+
+  const handleSaveCourier = async (e) => {
     e.preventDefault()
     setLoading(true)
     try {
-      const { error } = await supabase.rpc('rpc_admin_add_courier', {
-        input_password: session.password,
-        p_name: newCourier.name,
-        p_phone: newCourier.phone,
-        p_vehicle_plate: newCourier.vehicle_plate,
-        p_raw_password: newCourier.password
-      })
-      if (error) throw error
-      alert('Curier adăugat cu succes!')
-      setNewCourier({ name: '', phone: '', vehicle_plate: '', password: '' })
+      if (editingCourierId) {
+        const { error } = await supabase.rpc('rpc_admin_update_courier', {
+          input_password: session.password,
+          p_id: editingCourierId,
+          p_name: newCourier.name,
+          p_phone: newCourier.phone,
+          p_vehicle_plate: newCourier.vehicle_plate,
+          p_raw_password: newCourier.password || null
+        })
+        if (error) throw error
+        alert('Curier actualizat cu succes!')
+      } else {
+        const { error } = await supabase.rpc('rpc_admin_add_courier', {
+          input_password: session.password,
+          p_name: newCourier.name,
+          p_phone: newCourier.phone,
+          p_vehicle_plate: newCourier.vehicle_plate,
+          p_raw_password: newCourier.password
+        })
+        if (error) throw error
+        alert('Curier adăugat cu succes!')
+      }
+      resetCourierForm()
       loadPanelData(session.password, 'admin')
     } catch (err) {
-      alert('Eroare la adăugare curier: ' + err.message)
+      alert('Eroare la salvare curier: ' + err.message)
     } finally {
       setLoading(false)
     }
+  }
+
+  const startEditCourier = (cr) => {
+    setEditingCourierId(cr.id)
+    setNewCourier({
+      name: cr.name || '',
+      phone: cr.phone || '',
+      vehicle_plate: cr.vehicle_plate || '',
+      password: ''
+    })
+  }
+
+  const resetCourierForm = () => {
+    setEditingCourierId(null)
+    setNewCourier({ name: '', phone: '', vehicle_plate: '', password: '' })
   }
 
   const handleDeleteItem = async (table, id, label) => {
@@ -293,18 +394,17 @@ export default function DentaMotoApp() {
       if (error) throw error
       loadPanelData(session.password, 'admin')
     } catch (err) {
-      alert('Eroare la ștergere (asigură-te că ai rulat scriptul SQL în Supabase): ' + err.message)
+      alert('Eroare la ștergere: ' + err.message)
     }
   }
 
-  // --- COMPONENTĂ REUTILIZABILĂ COCKPIT MOTO (PT CURIER & ADMIN) ---
+  // --- COMPONENTĂ REUTILIZABILĂ COCKPIT MOTO ---
   const renderCourierCockpit = (rawDeliveries) => {
     const listToDisplay = isOptimized ? optimizedList : rawDeliveries
     const activeCount = rawDeliveries.filter(d => d.status === 'pending' || d.status === 'picked_up').length
 
     return (
       <div className="space-y-4">
-        {/* Bară de instrumente Navigație & Optimizare Traseu */}
         <div className="bg-slate-800 p-4 rounded-2xl border border-slate-700 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shadow-lg">
           <div>
             <h2 className="text-sm font-bold uppercase tracking-wider text-amber-400 flex items-center gap-2">
@@ -337,7 +437,6 @@ export default function DentaMotoApp() {
           </div>
         </div>
 
-        {/* Lista de comenzi */}
         {listToDisplay.length === 0 ? (
           <div className="bg-slate-800 rounded-2xl p-8 text-center text-slate-400 border border-slate-700">
             Nu există comenzi active în acest moment. Drum bun!
@@ -386,7 +485,6 @@ export default function DentaMotoApp() {
                   </span>
                 </div>
 
-                {/* Detalii colet + Butoane Waze și Google Maps */}
                 <div className="bg-slate-900/60 p-3 rounded-xl text-xs text-slate-300 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                   <div>
                     <span>Detalii colet: <strong className="text-white">{d.package_notes || 'Cutie lucrare dentară'}</strong></span>
@@ -415,7 +513,6 @@ export default function DentaMotoApp() {
                   )}
                 </div>
 
-                {/* Butoane Acțiune Status */}
                 <div className="flex gap-2 pt-2 border-t border-slate-700">
                   {d.status === 'pending' && (
                     <button
@@ -658,7 +755,7 @@ export default function DentaMotoApp() {
     )
   }
 
-  // --- PANOU ADMIN COMPLET (DISPECERAT + COCKPIT MOTO + GESTIUNE CRUD + SOLO.RO) ---
+  // --- PANOU ADMIN COMPLET ---
   if (session.panel === 'admin' && panelData) {
     const { admin, clients = [], destinations = [], couriers = [], deliveries = [] } = panelData
 
@@ -711,7 +808,7 @@ export default function DentaMotoApp() {
         </header>
 
         <main className="max-w-6xl mx-auto px-4 mt-6 space-y-6">
-          {/* TAB 1: DISPECERAT & ALOCARE COMENZI */}
+          {/* TAB 1: DISPECERAT */}
           {activeTab === 'dispatch' && (
             <div className="space-y-6">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -793,16 +890,23 @@ export default function DentaMotoApp() {
           {/* TAB 2: COCKPIT MOTO PENTRU ADMIN */}
           {activeTab === 'cockpit' && renderCourierCockpit(deliveries)}
 
-          {/* TAB 3: GESTIUNE CRUD (LABORATOARE, CLINICI, CURIERI) */}
+          {/* TAB 3: GESTIUNE CRUD (ADAUGARE + EDITARE + ȘTERGERE) */}
           {activeTab === 'manage' && (
             <div className="space-y-8">
               {/* Secțiune 1: Laboratoare (Clienți) */}
               <div className="grid md:grid-cols-3 gap-6 bg-slate-800 p-6 rounded-2xl border border-slate-700">
                 <div className="md:col-span-1 border-b md:border-b-0 md:border-r border-slate-700 pb-6 md:pb-0 md:pr-6">
-                  <h3 className="text-base font-bold text-blue-400 mb-4 flex items-center gap-2">
-                    <Building2 size={18} /> Adaugă Laborator Nou
-                  </h3>
-                  <form onSubmit={handleAddClient} className="space-y-3 text-xs">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-base font-bold text-blue-400 flex items-center gap-2">
+                      <Building2 size={18} /> {editingClientId ? 'Editează Laborator' : 'Adaugă Laborator Nou'}
+                    </h3>
+                    {editingClientId && (
+                      <button onClick={resetClientForm} className="text-xs text-slate-400 hover:text-white flex items-center gap-1">
+                        <X size={14} /> Anulează
+                      </button>
+                    )}
+                  </div>
+                  <form onSubmit={handleSaveClient} className="space-y-3 text-xs">
                     <input type="text" placeholder="Nume Scurt (ex: DentCraft Plevnei)" value={newClient.name} onChange={e => setNewClient({...newClient, name: e.target.value})} className="w-full p-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white" required />
                     <input type="text" placeholder="Denumire SRL (ex: SC DentCraft SRL)" value={newClient.legal_name} onChange={e => setNewClient({...newClient, legal_name: e.target.value})} className="w-full p-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white" />
                     <input type="text" placeholder="CUI (ex: RO123456)" value={newClient.cui} onChange={e => setNewClient({...newClient, cui: e.target.value})} className="w-full p-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white" required />
@@ -828,9 +932,16 @@ export default function DentaMotoApp() {
                         <input type="number" value={newClient.urgent_fee} onChange={e => setNewClient({...newClient, urgent_fee: e.target.value})} className="w-full p-2 bg-slate-900 border border-slate-700 rounded-lg text-white" />
                       </div>
                     </div>
-                    <input type="text" placeholder="Setează Parola de Acces (ex: Lab#2026)" value={newClient.password} onChange={e => setNewClient({...newClient, password: e.target.value})} className="w-full p-2.5 bg-slate-900 border border-blue-500 rounded-xl text-white font-bold" required />
+                    <input 
+                      type="text" 
+                      placeholder={editingClientId ? "Parolă nouă (lasă gol pt a păstra vechea parolă)" : "Setează Parola de Acces (ex: Lab#2026)"} 
+                      value={newClient.password} 
+                      onChange={e => setNewClient({...newClient, password: e.target.value})} 
+                      className="w-full p-2.5 bg-slate-900 border border-blue-500 rounded-xl text-white font-bold" 
+                      required={!editingClientId} 
+                    />
                     <button type="submit" disabled={loading} className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl transition">
-                      + Salvează Laborator
+                      {editingClientId ? 'Salvează Modificările' : '+ Salvează Laborator'}
                     </button>
                   </form>
                 </div>
@@ -839,15 +950,20 @@ export default function DentaMotoApp() {
                   <h3 className="text-base font-bold text-white mb-4">Laboratoare Existente ({clients.length})</h3>
                   <div className="space-y-2.5 max-h-96 overflow-y-auto pr-1">
                     {clients.map(c => (
-                      <div key={c.id} className="p-3.5 bg-slate-900 rounded-xl border border-slate-700 flex justify-between items-center">
+                      <div key={c.id} className={`p-3.5 bg-slate-900 rounded-xl border ${editingClientId === c.id ? 'border-blue-500' : 'border-slate-700'} flex justify-between items-center`}>
                         <div>
                           <p className="font-bold text-sm text-white">{c.name} <span className="text-xs text-slate-400">({c.cui})</span></p>
                           <p className="text-xs text-slate-400">{c.pickup_address} • Tel: {c.phone}</p>
-                          <p className="text-xs text-blue-400 mt-1">Cotă: {c.monthly_quota} curse • Extra: {c.extra_fee} RON • Urgent: {c.urgent_fee} RON</p>
+                          <p className="text-xs text-blue-400 mt-1">Cotă: {c.monthly_quota} curse • Abonament: {c.subscription_price || 0} RON • Extra: {c.extra_fee} RON • Urgent: {c.urgent_fee} RON</p>
                         </div>
-                        <button onClick={() => handleDeleteItem('client', c.id, c.name)} className="p-2 text-slate-500 hover:text-red-400">
-                          <Trash2 size={16} />
-                        </button>
+                        <div className="flex items-center gap-1">
+                          <button onClick={() => startEditClient(c)} className="p-2 text-slate-400 hover:text-blue-400 transition" title="Editează laborator">
+                            <Edit2 size={16} />
+                          </button>
+                          <button onClick={() => handleDeleteItem('client', c.id, c.name)} className="p-2 text-slate-500 hover:text-red-400 transition" title="Șterge laborator">
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -857,10 +973,17 @@ export default function DentaMotoApp() {
               {/* Secțiune 2: Clinici Destinație */}
               <div className="grid md:grid-cols-3 gap-6 bg-slate-800 p-6 rounded-2xl border border-slate-700">
                 <div className="md:col-span-1 border-b md:border-b-0 md:border-r border-slate-700 pb-6 md:pb-0 md:pr-6">
-                  <h3 className="text-base font-bold text-emerald-400 mb-4 flex items-center gap-2">
-                    <MapPin size={18} /> Adaugă Clinică Destinație
-                  </h3>
-                  <form onSubmit={handleAddDestination} className="space-y-3 text-xs">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-base font-bold text-emerald-400 flex items-center gap-2">
+                      <MapPin size={18} /> {editingDestId ? 'Editează Clinica' : 'Adaugă Clinică Destinație'}
+                    </h3>
+                    {editingDestId && (
+                      <button onClick={resetDestForm} className="text-xs text-slate-400 hover:text-white flex items-center gap-1">
+                        <X size={14} /> Anulează
+                      </button>
+                    )}
+                  </div>
+                  <form onSubmit={handleSaveDestination} className="space-y-3 text-xs">
                     <select value={newDest.client_id} onChange={e => setNewDest({...newDest, client_id: e.target.value})} className="w-full p-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white" required>
                       <option value="">-- Alege Laboratorul Partener --</option>
                       {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -878,7 +1001,7 @@ export default function DentaMotoApp() {
                     </select>
                     <input type="text" placeholder="Telefon Recepție Clinică" value={newDest.contact_phone} onChange={e => setNewDest({...newDest, contact_phone: e.target.value})} className="w-full p-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white" />
                     <button type="submit" disabled={loading} className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl transition">
-                      + Adaugă Clinica
+                      {editingDestId ? 'Salvează Modificările' : '+ Adaugă Clinica'}
                     </button>
                   </form>
                 </div>
@@ -887,14 +1010,19 @@ export default function DentaMotoApp() {
                   <h3 className="text-base font-bold text-white mb-4">Clinici Arondate ({destinations?.length || 0})</h3>
                   <div className="space-y-2.5 max-h-80 overflow-y-auto pr-1">
                     {destinations?.map(dest => (
-                      <div key={dest.id} className="p-3 bg-slate-900 rounded-xl border border-slate-700 flex justify-between items-center">
+                      <div key={dest.id} className={`p-3 bg-slate-900 rounded-xl border ${editingDestId === dest.id ? 'border-emerald-500' : 'border-slate-700'} flex justify-between items-center`}>
                         <div>
                           <p className="font-bold text-sm text-white">{dest.clinic_name} <span className="text-xs bg-slate-800 text-emerald-400 px-2 py-0.5 rounded-full">{dest.zone}</span></p>
                           <p className="text-xs text-slate-400">{dest.dropoff_address} • Tel: {dest.contact_phone}</p>
                         </div>
-                        <button onClick={() => handleDeleteItem('destination', dest.id, dest.clinic_name)} className="p-2 text-slate-500 hover:text-red-400">
-                          <Trash2 size={16} />
-                        </button>
+                        <div className="flex items-center gap-1">
+                          <button onClick={() => startEditDest(dest)} className="p-2 text-slate-400 hover:text-emerald-400 transition" title="Editează clinica">
+                            <Edit2 size={16} />
+                          </button>
+                          <button onClick={() => handleDeleteItem('destination', dest.id, dest.clinic_name)} className="p-2 text-slate-500 hover:text-red-400 transition" title="Șterge clinica">
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -904,16 +1032,30 @@ export default function DentaMotoApp() {
               {/* Secțiune 3: Curieri Moto */}
               <div className="grid md:grid-cols-3 gap-6 bg-slate-800 p-6 rounded-2xl border border-slate-700">
                 <div className="md:col-span-1 border-b md:border-b-0 md:border-r border-slate-700 pb-6 md:pb-0 md:pr-6">
-                  <h3 className="text-base font-bold text-amber-400 mb-4 flex items-center gap-2">
-                    <Users size={18} /> Adaugă Curier Moto
-                  </h3>
-                  <form onSubmit={handleAddCourier} className="space-y-3 text-xs">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-base font-bold text-amber-400 flex items-center gap-2">
+                      <Users size={18} /> {editingCourierId ? 'Editează Curier' : 'Adaugă Curier Moto'}
+                    </h3>
+                    {editingCourierId && (
+                      <button onClick={resetCourierForm} className="text-xs text-slate-400 hover:text-white flex items-center gap-1">
+                        <X size={14} /> Anulează
+                      </button>
+                    )}
+                  </div>
+                  <form onSubmit={handleSaveCourier} className="space-y-3 text-xs">
                     <input type="text" placeholder="Nume Curier (ex: Andrei Moto)" value={newCourier.name} onChange={e => setNewCourier({...newCourier, name: e.target.value})} className="w-full p-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white" required />
                     <input type="text" placeholder="Telefon Curier" value={newCourier.phone} onChange={e => setNewCourier({...newCourier, phone: e.target.value})} className="w-full p-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white" required />
                     <input type="text" placeholder="Număr Scuter (ex: B-102-SCO)" value={newCourier.vehicle_plate} onChange={e => setNewCourier({...newCourier, vehicle_plate: e.target.value})} className="w-full p-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white" required />
-                    <input type="text" placeholder="Setează Parola Curier (ex: Moto#99)" value={newCourier.password} onChange={e => setNewCourier({...newCourier, password: e.target.value})} className="w-full p-2.5 bg-slate-900 border border-amber-500 rounded-xl text-white font-bold" required />
+                    <input 
+                      type="text" 
+                      placeholder={editingCourierId ? "Parolă nouă (lasă gol pt a păstra vechea parolă)" : "Setează Parola Curier (ex: Moto#99)"} 
+                      value={newCourier.password} 
+                      onChange={e => setNewCourier({...newCourier, password: e.target.value})} 
+                      className="w-full p-2.5 bg-slate-900 border border-amber-500 rounded-xl text-white font-bold" 
+                      required={!editingCourierId} 
+                    />
                     <button type="submit" disabled={loading} className="w-full py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-xl transition">
-                      + Salvează Curier
+                      {editingCourierId ? 'Salvează Modificările' : '+ Salvează Curier'}
                     </button>
                   </form>
                 </div>
@@ -922,14 +1064,19 @@ export default function DentaMotoApp() {
                   <h3 className="text-base font-bold text-white mb-4">Echipa de Curieri ({couriers.length})</h3>
                   <div className="space-y-2.5">
                     {couriers.map(cr => (
-                      <div key={cr.id} className="p-3.5 bg-slate-900 rounded-xl border border-slate-700 flex justify-between items-center">
+                      <div key={cr.id} className={`p-3.5 bg-slate-900 rounded-xl border ${editingCourierId === cr.id ? 'border-amber-500' : 'border-slate-700'} flex justify-between items-center`}>
                         <div>
                           <p className="font-bold text-sm text-white">{cr.name} <span className="text-xs bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-md ml-1">{cr.vehicle_plate}</span></p>
                           <p className="text-xs text-slate-400">Telefon: {cr.phone}</p>
                         </div>
-                        <button onClick={() => handleDeleteItem('courier', cr.id, cr.name)} className="p-2 text-slate-500 hover:text-red-400">
-                          <Trash2 size={16} />
-                        </button>
+                        <div className="flex items-center gap-1">
+                          <button onClick={() => startEditCourier(cr)} className="p-2 text-slate-400 hover:text-amber-400 transition" title="Editează curier">
+                            <Edit2 size={16} />
+                          </button>
+                          <button onClick={() => handleDeleteItem('courier', cr.id, cr.name)} className="p-2 text-slate-500 hover:text-red-400 transition" title="Șterge curier">
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>
