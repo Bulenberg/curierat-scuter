@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { 
-  Shield, Truck, Building2, Lock, LogOut, Plus, CheckCircle2, 
+  Shield, Truck, Bike, Building2, Lock, LogOut, Plus, CheckCircle2, 
   AlertCircle, Clock, MapPin, Navigation, Route, Trash2, 
   Users, Sparkles, RefreshCw, Compass, Edit2, X
 } from 'lucide-react'
@@ -149,7 +149,6 @@ export default function DentaMotoApp() {
     const recipient = newStatus === 'delivered' ? prompt('Numele persoanei care a preluat coletul la clinică:') : null
     if (newStatus === 'delivered' && !recipient) return
 
-    // Actualizăm starea locală instant pe ecran (fără să mai așteptăm după server)
     if (panelData && panelData.deliveries) {
       const updatedDeliveries = panelData.deliveries.map(d => {
         if (d.id === deliveryId) {
@@ -176,11 +175,10 @@ export default function DentaMotoApp() {
         p_recipient_name: recipient
       })
       if (error) throw error
-      // Sincronizăm în fundal cu baza de date
       loadPanelData(session.password, session.panel)
     } catch (err) {
       alert('Eroare la actualizarea statusului: ' + err.message)
-      loadPanelData(session.password, session.panel) // Revenim la starea reală dacă a fost eroare
+      loadPanelData(session.password, session.panel)
     }
   }
 
@@ -217,7 +215,7 @@ export default function DentaMotoApp() {
     window.open(url, '_blank')
   }
 
-  // --- FUNCȚII ADMIN CRUD (ADAUGARE + EDITARE + ȘTERGERE) ---
+  // --- FUNCȚII ADMIN CRUD ---
   const handleAssignCourier = async (deliveryId, courierId) => {
     try {
       const { error } = await supabase.rpc('rpc_admin_assign_courier', {
@@ -288,7 +286,7 @@ export default function DentaMotoApp() {
       pickup_address: c.pickup_address || '',
       phone: c.phone || '',
       monthly_quota: c.monthly_quota ?? 25,
-      subscription_price: c.subscription_price ?? 500,
+      subscription_price: c.base_fee ?? c.subscription_price ?? 500,
       extra_fee: c.extra_fee ?? 35,
       urgent_fee: c.urgent_fee ?? 50,
       password: ''
@@ -343,7 +341,7 @@ export default function DentaMotoApp() {
     setNewDest({
       client_id: dest.client_id || '',
       clinic_name: dest.clinic_name || '',
-      dropoff_address: dest.dropoff_address || '',
+      dropoff_address: dest.address || dest.dropoff_address || '',
       zone: dest.zone || 'Sector 1',
       contact_phone: dest.contact_phone || ''
     })
@@ -419,7 +417,7 @@ export default function DentaMotoApp() {
     }
   }
 
-  // --- COMPONENTĂ REUTILIZABILĂ COCKPIT MOTO ---
+  // --- COMPONENTĂ COCKPIT MOTO ---
   const renderCourierCockpit = (rawDeliveries) => {
     const listToDisplay = isOptimized ? optimizedList : rawDeliveries
     const activeCount = rawDeliveries.filter(d => d.status === 'pending' || d.status === 'picked_up').length
@@ -565,17 +563,17 @@ export default function DentaMotoApp() {
     )
   }
 
-  // --- ECRAN DE LOGIN ---
+  // --- ECRAN DE LOGIN ACTUALIZAT CONFORM CERINȚELOR ---
   if (!session) {
     return (
       <main className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
         <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 border border-slate-800">
           <div className="text-center mb-8">
             <div className="bg-blue-600 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 text-white shadow-lg">
-              <Truck size={32} />
+              <Bike size={32} />
             </div>
-            <h1 className="text-2xl font-bold text-slate-900">DentaMoto Express</h1>
-            <p className="text-sm text-slate-500 mt-1">Curierat Moto B2B • Laboratoare Dentare București</p>
+            <h1 className="text-2xl font-bold text-slate-900">Curierat Moto B2B</h1>
+            <p className="text-sm text-slate-500 mt-1">Florin Danciu PFA</p>
           </div>
 
           <form onSubmit={handleLogin} className="space-y-4">
@@ -608,10 +606,6 @@ export default function DentaMotoApp() {
               {loading ? 'Se verifică...' : 'Autentificare în Panou'}
             </button>
           </form>
-
-          <div className="mt-8 text-center text-xs text-slate-400 border-t pt-4">
-            Sistem securizat prin funcții RPC pe Supabase & Bcrypt
-          </div>
         </div>
       </main>
     )
@@ -756,7 +750,7 @@ export default function DentaMotoApp() {
           <div className="max-w-4xl mx-auto px-4 py-4 flex justify-between items-center">
             <div className="flex items-center gap-3">
               <div className="bg-amber-500 text-slate-900 p-2 rounded-xl font-bold">
-                <Truck size={20} />
+                <Bike size={20} />
               </div>
               <div>
                 <h1 className="text-base font-bold">Cockpit Moto ({session.user?.name || 'Curier'})</h1>
@@ -790,7 +784,7 @@ export default function DentaMotoApp() {
               </div>
               <div>
                 <h1 className="text-base font-bold">Admin & Dispecerat ({admin?.name || 'Admin'})</h1>
-                <p className="text-xs text-slate-400">Control Central DentaMoto Express</p>
+                <p className="text-xs text-slate-400">Control Central • Florin Danciu PFA</p>
               </div>
             </div>
 
@@ -911,10 +905,10 @@ export default function DentaMotoApp() {
           {/* TAB 2: COCKPIT MOTO PENTRU ADMIN */}
           {activeTab === 'cockpit' && renderCourierCockpit(deliveries)}
 
-          {/* TAB 3: GESTIUNE CRUD (ADAUGARE + EDITARE + ȘTERGERE) */}
+          {/* TAB 3: GESTIUNE CRUD */}
           {activeTab === 'manage' && (
             <div className="space-y-8">
-              {/* Secțiune 1: Laboratoare (Clienți) */}
+              {/* Secțiune 1: Laboratoare */}
               <div className="grid md:grid-cols-3 gap-6 bg-slate-800 p-6 rounded-2xl border border-slate-700">
                 <div className="md:col-span-1 border-b md:border-b-0 md:border-r border-slate-700 pb-6 md:pb-0 md:pr-6">
                   <div className="flex justify-between items-center mb-4">
@@ -975,7 +969,7 @@ export default function DentaMotoApp() {
                         <div>
                           <p className="font-bold text-sm text-white">{c.name} <span className="text-xs text-slate-400">({c.cui})</span></p>
                           <p className="text-xs text-slate-400">{c.pickup_address} • Tel: {c.phone}</p>
-                          <p className="text-xs text-blue-400 mt-1">Cotă: {c.monthly_quota} curse • Abonament: {c.subscription_price || 0} RON • Extra: {c.extra_fee} RON • Urgent: {c.urgent_fee} RON</p>
+                          <p className="text-xs text-blue-400 mt-1">Cotă: {c.monthly_quota} curse • Abonament: {c.base_fee ?? c.subscription_price ?? 500} RON • Extra: {c.extra_fee} RON • Urgent: {c.urgent_fee} RON</p>
                         </div>
                         <div className="flex items-center gap-1">
                           <button onClick={() => startEditClient(c)} className="p-2 text-slate-400 hover:text-blue-400 transition" title="Editează laborator">
@@ -1034,7 +1028,7 @@ export default function DentaMotoApp() {
                       <div key={dest.id} className={`p-3 bg-slate-900 rounded-xl border ${editingDestId === dest.id ? 'border-emerald-500' : 'border-slate-700'} flex justify-between items-center`}>
                         <div>
                           <p className="font-bold text-sm text-white">{dest.clinic_name} <span className="text-xs bg-slate-800 text-emerald-400 px-2 py-0.5 rounded-full">{dest.zone}</span></p>
-                          <p className="text-xs text-slate-400">{dest.dropoff_address} • Tel: {dest.contact_phone}</p>
+                          <p className="text-xs text-slate-400">{dest.address || dest.dropoff_address} • Tel: {dest.contact_phone}</p>
                         </div>
                         <div className="flex items-center gap-1">
                           <button onClick={() => startEditDest(dest)} className="p-2 text-slate-400 hover:text-emerald-400 transition" title="Editează clinica">
