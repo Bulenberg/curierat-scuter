@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase'
 import { 
   Shield, Truck, Bike, Building2, Lock, LogOut, Plus, CheckCircle2, 
   AlertCircle, Clock, MapPin, Navigation, Route, Trash2, 
-  Users, Sparkles, RefreshCw, Compass, Edit2, X
+  Users, Sparkles, RefreshCw, Compass, Edit2, X, DollarSign, Wallet
 } from 'lucide-react'
 
 export default function DentaMotoApp() {
@@ -144,7 +144,7 @@ export default function DentaMotoApp() {
     }
   }
 
-  // --- FUNCȚII CURIER & OPTIMIZARE TRASEU ---
+  // --- FUNCȚII CURIER & OPTIMIZARE ---
   const updateDeliveryStatus = async (deliveryId, newStatus) => {
     const recipient = newStatus === 'delivered' ? prompt('Numele persoanei care a preluat coletul la clinică:') : null
     if (newStatus === 'delivered' && !recipient) return
@@ -215,7 +215,7 @@ export default function DentaMotoApp() {
     window.open(url, '_blank')
   }
 
-  // --- FUNCȚII ADMIN CRUD ---
+  // --- ADMIN CRUD ---
   const handleAssignCourier = async (deliveryId, courierId) => {
     try {
       const { error } = await supabase.rpc('rpc_admin_assign_courier', {
@@ -417,7 +417,7 @@ export default function DentaMotoApp() {
     }
   }
 
-  // --- COMPONENTĂ COCKPIT MOTO ---
+  // --- COCKPIT MOTO ---
   const renderCourierCockpit = (rawDeliveries) => {
     const listToDisplay = isOptimized ? optimizedList : rawDeliveries
     const activeCount = rawDeliveries.filter(d => d.status === 'pending' || d.status === 'picked_up').length
@@ -506,7 +506,7 @@ export default function DentaMotoApp() {
 
                 <div className="bg-slate-900/60 p-3 rounded-xl text-xs text-slate-300 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                   <div>
-                    <span>Detalii colet: <strong className="text-white">{d.package_notes || 'Cutie lucrare dentară'}</strong></span>
+                    <span>Detalii colet: <strong className="text-white">{d.package_notes || 'Colet standard'}</strong></span>
                     {d.needs_return && <span className="ml-2 text-amber-400 font-semibold">• Necesită Retur!</span>}
                   </div>
                   
@@ -563,7 +563,7 @@ export default function DentaMotoApp() {
     )
   }
 
-  // --- ECRAN DE LOGIN ACTUALIZAT CONFORM CERINȚELOR ---
+  // --- ECRAN LOGIN ---
   if (!session) {
     return (
       <main className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
@@ -794,7 +794,7 @@ export default function DentaMotoApp() {
                   onClick={() => setActiveTab('dispatch')}
                   className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${activeTab === 'dispatch' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'}`}
                 >
-                  1. Dispecerat Live
+                  1. Dispecerat
                 </button>
                 <button
                   onClick={() => setActiveTab('cockpit')}
@@ -806,13 +806,19 @@ export default function DentaMotoApp() {
                   onClick={() => setActiveTab('manage')}
                   className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${activeTab === 'manage' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'}`}
                 >
-                  3. Gestiune (Clienți / Curieri)
+                  3. Gestiune
                 </button>
                 <button
                   onClick={() => setActiveTab('solo')}
                   className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${activeTab === 'solo' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'}`}
                 >
-                  4. Facturare Solo.ro
+                  4. Solo.ro (Clienți)
+                </button>
+                <button
+                  onClick={() => setActiveTab('courier_payouts')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${activeTab === 'courier_payouts' ? 'bg-amber-500 text-slate-950 font-bold' : 'text-slate-400 hover:text-white'}`}
+                >
+                  5. Plăți Curieri
                 </button>
               </div>
               <button onClick={handleLogout} className="flex items-center gap-1 px-3 py-2 text-xs text-red-400 hover:bg-slate-700 rounded-lg transition font-medium">
@@ -902,10 +908,10 @@ export default function DentaMotoApp() {
             </div>
           )}
 
-          {/* TAB 2: COCKPIT MOTO PENTRU ADMIN */}
+          {/* TAB 2: COCKPIT MOTO */}
           {activeTab === 'cockpit' && renderCourierCockpit(deliveries)}
 
-          {/* TAB 3: GESTIUNE CRUD */}
+          {/* TAB 3: GESTIUNE */}
           {activeTab === 'manage' && (
             <div className="space-y-8">
               {/* Secțiune 1: Laboratoare */}
@@ -1044,7 +1050,7 @@ export default function DentaMotoApp() {
                 </div>
               </div>
 
-              {/* Secțiune 3: Curieri Moto */}
+              {/* Secțiune 3: Curieri */}
               <div className="grid md:grid-cols-3 gap-6 bg-slate-800 p-6 rounded-2xl border border-slate-700">
                 <div className="md:col-span-1 border-b md:border-b-0 md:border-r border-slate-700 pb-6 md:pb-0 md:pr-6">
                   <div className="flex justify-between items-center mb-4">
@@ -1100,15 +1106,15 @@ export default function DentaMotoApp() {
             </div>
           )}
 
-          {/* TAB 4: CONTABILITATE SOLO.RO */}
+          {/* TAB 4: SOLO.RO (CLIENȚI) */}
           {activeTab === 'solo' && (
-            <div className="bg-slate-800 rounded-2xl p-6 border border-slate-700">
-              <div className="flex justify-between items-center mb-6">
+            <div className="bg-slate-800 rounded-2xl p-6 border border-slate-700 space-y-6">
+              <div className="flex justify-between items-center">
                 <div>
                   <h2 className="text-base font-bold text-white">Raport Facturare & Cotele Lunare (Solo.ro)</h2>
                   <p className="text-xs text-slate-400">Situația centralizată a abonamentelor, curselor extra și urgențelor pe fiecare laborator.</p>
                 </div>
-                <span className="bg-blue-900 text-blue-200 text-xs px-3 py-1 rounded-full font-semibold">Mod Contabilitate B2B</span>
+                <span className="bg-blue-900 text-blue-200 text-xs px-3 py-1 rounded-full font-semibold">Mod Contabilitate Încasări</span>
               </div>
 
               <div className="overflow-x-auto">
@@ -1120,7 +1126,7 @@ export default function DentaMotoApp() {
                       <th className="p-3">Cotă Standard</th>
                       <th className="p-3">Curse Extra</th>
                       <th className="p-3">Curse Urgente</th>
-                      <th className="p-3 rounded-r-xl">Total Suplimentar</th>
+                      <th className="p-3 rounded-r-xl">Total Suplimentar (RON)</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-700">
@@ -1128,22 +1134,65 @@ export default function DentaMotoApp() {
                       const validDeliveries = deliveries.filter(d => d.client_id === c.id && d.status !== 'cancelled')
                       const standardCount = validDeliveries.filter(d => !d.is_urgent).length
                       const urgentCount = validDeliveries.filter(d => d.is_urgent).length
-                      const extraCount = Math.max(0, standardCount - c.monthly_quota)
-                      const totalExtraRon = (extraCount * (c.extra_fee || 0)) + (urgentCount * (c.urgent_fee || 0))
+                      const extraCount = Math.max(0, standardCount - (c.monthly_quota || 25))
+                      const totalExtraRon = (extraCount * (c.extra_fee || 35)) + (urgentCount * (c.urgent_fee || 50))
 
                       return (
                         <tr key={c.id} className="hover:bg-slate-900/50">
                           <td className="p-3 font-bold text-white">{c.name}</td>
                           <td className="p-3 text-slate-400">{c.cui}</td>
-                          <td className="p-3 font-semibold text-blue-400">{standardCount} / {c.monthly_quota}</td>
-                          <td className="p-3">{extraCount} curse (+{extraCount * (c.extra_fee || 0)} RON)</td>
-                          <td className="p-3 text-red-400">{urgentCount} urgențe (+{urgentCount * (c.urgent_fee || 0)} RON)</td>
+                          <td className="p-3 font-semibold text-blue-400">{standardCount} / {c.monthly_quota || 25}</td>
+                          <td className="p-3">{extraCount} curse (+{extraCount * (c.extra_fee || 35)} RON)</td>
+                          <td className="p-3 text-red-400">{urgentCount} urgențe (+{urgentCount * (c.urgent_fee || 50)} RON)</td>
                           <td className="p-3 font-bold text-amber-400">+{totalExtraRon} RON</td>
                         </tr>
                       )
                     })}
                   </tbody>
                 </table>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 5: PLĂȚI CURIERI */}
+          {activeTab === 'courier_payouts' && (
+            <div className="bg-slate-800 rounded-2xl p-6 border border-slate-700 space-y-6">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h2 className="text-base font-bold text-white flex items-center gap-2">
+                    <Wallet size={20} className="text-amber-400" /> Evidență Plăți Curieri Colaboratori
+                  </h2>
+                  <p className="text-xs text-slate-400">Calculul automat al curselor livrate și al sumelor datorate fiecărui curier pentru luna curentă.</p>
+                </div>
+                <span className="bg-amber-900 text-amber-200 text-xs px-3 py-1 rounded-full font-semibold">Ieșiri / Plăți</span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {couriers.map(cr => {
+                  const courierDeliveries = deliveries.filter(d => d.courier_id === cr.id && d.status === 'delivered')
+                  const deliveredCount = courierDeliveries.length
+                  const ratePerStop = cr.rate_per_stop || 35 // Tariful standard per cursă
+                  const totalPayout = deliveredCount * ratePerStop
+
+                  return (
+                    <div key={cr.id} className="bg-slate-900 p-5 rounded-2xl border border-slate-700 space-y-3">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h3 className="font-bold text-white text-base">{cr.name}</h3>
+                          <p className="text-xs text-slate-400">Scuter: {cr.vehicle_plate} • Tel: {cr.phone}</p>
+                        </div>
+                        <span className="bg-amber-500/20 text-amber-300 text-xs px-2.5 py-1 rounded-lg font-bold">
+                          {ratePerStop} RON / cursă
+                        </span>
+                      </div>
+
+                      <div className="flex justify-between items-center pt-3 border-t border-slate-800 text-sm">
+                        <span className="text-slate-300">Curse livrate: <strong className="text-white">{deliveredCount}</strong></span>
+                        <span className="text-amber-400 font-extrabold text-base">Total de plată: {totalPayout} RON</span>
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
             </div>
           )}
@@ -1155,7 +1204,7 @@ export default function DentaMotoApp() {
   return (
     <div className="min-h-screen bg-slate-900 text-white flex items-center justify-center p-4">
       <div className="text-center space-y-4">
-        <p className="text-slate-400">Se încarcă datele...</p>
+        <p className="text-slate-400">Se încarcă datele curierului...</p>
         <button onClick={handleLogout} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-xl text-sm font-medium transition">
           Resetare Sesiune
         </button>
