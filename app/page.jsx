@@ -149,6 +149,25 @@ export default function DentaMotoApp() {
     const recipient = newStatus === 'delivered' ? prompt('Numele persoanei care a preluat coletul la clinică:') : null
     if (newStatus === 'delivered' && !recipient) return
 
+    // Actualizăm starea locală instant pe ecran (fără să mai așteptăm după server)
+    if (panelData && panelData.deliveries) {
+      const updatedDeliveries = panelData.deliveries.map(d => {
+        if (d.id === deliveryId) {
+          return {
+            ...d,
+            status: newStatus,
+            recipient_name: recipient || d.recipient_name
+          }
+        }
+        return d
+      })
+      setPanelData({ ...panelData, deliveries: updatedDeliveries })
+      
+      if (isOptimized) {
+        setOptimizedList(optimizedList.map(d => d.id === deliveryId ? { ...d, status: newStatus, recipient_name: recipient || d.recipient_name } : d))
+      }
+    }
+
     try {
       const { error } = await supabase.rpc('rpc_courier_update_status', {
         input_password: session.password,
@@ -157,9 +176,11 @@ export default function DentaMotoApp() {
         p_recipient_name: recipient
       })
       if (error) throw error
+      // Sincronizăm în fundal cu baza de date
       loadPanelData(session.password, session.panel)
     } catch (err) {
       alert('Eroare la actualizarea statusului: ' + err.message)
+      loadPanelData(session.password, session.panel) // Revenim la starea reală dacă a fost eroare
     }
   }
 
